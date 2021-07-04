@@ -3,7 +3,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <liburing.h>
+#include "liburing.h"
 #include <stdlib.h>
 #include <uv.h>
 #include <node_api.h>
