@@ -1,6 +1,6 @@
 {
-  "name": "io_uring",
-  "version": "1.0.1",
+  "name": "nodejs_io_uring",
+  "version": "1.0.3",
   "description": "",
   "main": "FileReader.js",
   "scripts": {
@@ -9,11 +9,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/theanarkh/nodejs-io_uring"
+    "url": "https://github.com/theanarkh/nodejs_io_uring"
   },
   "keywords": [
     "io_uring"
   ],
+  "files": ["README.md","io_uring.cc", "FileReader.js", "binding.gyp", "test.js", "liburing.a", "1.txt"],
   "author": "gc",
   "license": "ISC",
   "gypfile": true
