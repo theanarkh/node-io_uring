@@ -87,7 +87,17 @@ int submit_request(int op, struct request* req, struct io_uring *ring) {
     // 获取一个io_uring的请求结构体
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     // 填充请求
-    io_uring_prep_readv(sqe, req->fd, req->iovecs, req->nvecs, req->offset);
+    switch (op)
+    {
+    case IORING_OP_READV:
+        io_uring_prep_readv(sqe, req->fd, req->iovecs, req->nvecs, req->offset);
+        break;
+    case IORING_OP_WRITEV:
+        io_uring_prep_writev(sqe, req->fd, req->iovecs, req->nvecs, req->offset);
+        break;
+    default:
+        break;
+    }
     // 保存请求上下文，响应的时候用
     io_uring_sqe_set_data(sqe, (void *)req);
     uv_loop_t* loop;
@@ -170,7 +180,6 @@ static napi_value write(napi_env env, napi_callback_info info) {
     req->iovecs[0].iov_len = bufferLength;
     // 记录内存地址
     req->iovecs[0].iov_base = bufferData;
-
     submit_request(IORING_OP_WRITEV, req, &io_uring_data->ring);              
     return nullptr;
 }

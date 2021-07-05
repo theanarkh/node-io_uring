@@ -9,8 +9,8 @@ class FileWriter extends Writable {
     }
 
     _write(data, encoding, cb) {
-        write(this.fd, data, (error,offset) => {
-            if (error) {
+	write(this.fd, data, (error,offset) => {
+	    if (error) {
                 cb(error);
             } else {
                 this.offset += offset;
