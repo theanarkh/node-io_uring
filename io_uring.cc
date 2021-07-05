@@ -9,7 +9,6 @@
 #include <node_api.h>
 
 #define QUEUE_DEPTH 1
-#define BLOCK_SZ    1024
 
 // 管理一个文件读取请求的结构体
 struct request {
@@ -84,7 +83,7 @@ void io_uring_done(uv_poll_t* handle, int status, int events) {
 }
 
 // 向内核提交一个请求
-int submit_read_request(int op, struct request* req, struct io_uring *ring) {
+int submit_request(int op, struct request* req, struct io_uring *ring) {
     // 获取一个io_uring的请求结构体
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     // 填充请求
@@ -107,20 +106,19 @@ int submit_read_request(int op, struct request* req, struct io_uring *ring) {
 
 
 static napi_value read(napi_env env, napi_callback_info info) {
-  size_t argc = 5;
-  napi_value args[5];
-  napi_get_cb_info(env, info, &argc, args, NULL, NULL);
-  int32_t fd;
-  napi_get_value_int32(env, args[0], &fd);
-  char *bufferData;
-  size_t bufferLength;
-  napi_get_buffer_info(
-                env,
-                args[1],
-                (void**)(&bufferData),
-                &bufferLength);
-  int32_t offset;
-  napi_get_value_int32(env, args[3], &offset);
+    size_t argc = 4;
+    napi_value args[4];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    int32_t fd;
+    napi_get_value_int32(env, args[0], &fd);
+    char *bufferData;
+    size_t bufferLength;
+    napi_get_buffer_info(env,
+                        args[1],
+                        (void**)(&bufferData),
+                        &bufferLength);
+    int32_t offset;
+    napi_get_value_int32(env, args[3], &offset);
   
     uv_loop_t* loop;
     napi_get_uv_event_loop(env, &loop);
@@ -138,8 +136,43 @@ static napi_value read(napi_env env, napi_callback_info info) {
     // 记录内存地址
     req->iovecs[0].iov_base = bufferData;
 
-    submit_read_request(IORING_OP_READV, req, &io_uring_data->ring);              
-  return nullptr;
+    submit_request(IORING_OP_READV, req, &io_uring_data->ring);              
+    return nullptr;
+}
+
+static napi_value write(napi_env env, napi_callback_info info) {
+    size_t argc = 4;
+    napi_value args[4];
+    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
+    int32_t fd;
+    napi_get_value_int32(env, args[0], &fd);
+    char *bufferData;
+    size_t bufferLength;
+    napi_get_buffer_info(env,
+                        args[1],
+                        (void**)(&bufferData),
+                        &bufferLength);
+    int32_t offset;
+    napi_get_value_int32(env, args[3], &offset);
+  
+    uv_loop_t* loop;
+    napi_get_uv_event_loop(env, &loop);
+    struct io_uring_info *io_uring_data = (io_uring_info *)loop->data;
+    // 申请内存
+    struct request *req = (struct request *)malloc(sizeof(*req) + (sizeof(struct iovec) * 1));
+    req->fd = fd;
+    req->offset = offset;
+    // 保存回调
+    napi_create_reference(env, args[2], 1, &req->func);
+    req->env = env;
+    req->nvecs = 1;
+    // 记录buffer大小
+    req->iovecs[0].iov_len = bufferLength;
+    // 记录内存地址
+    req->iovecs[0].iov_base = bufferData;
+
+    submit_request(IORING_OP_WRITEV, req, &io_uring_data->ring);              
+    return nullptr;
 }
 
 napi_value Init(napi_env env, napi_value exports) {
@@ -148,21 +181,29 @@ napi_value Init(napi_env env, napi_value exports) {
     // 申请一个io_uring相关的结构体
     struct io_uring_info *io_uring_data = (struct io_uring_info *)malloc(sizeof(*io_uring_data));
     // 初始化io_uring
-    io_uring_queue_init(1, &io_uring_data->ring, 0);
+    io_uring_queue_init(QUEUE_DEPTH, &io_uring_data->ring, 0);
     // 初始化poll handle，保存监听的fd
     uv_poll_init(loop, &io_uring_data->poll_handle, io_uring_data->ring.ring_fd);
 
     // 保存io_uring的上下文在loop中
     loop->data = (void *)io_uring_data;
-  napi_value func;
-  napi_create_function(env,
+    napi_value readFunc;
+    napi_create_function(env,
                       NULL,
                       NAPI_AUTO_LENGTH,
                       read,
                       NULL,
-                      &func);
-  napi_set_named_property(env, exports, "read", func);
-  return exports;
+                      &readFunc);
+    napi_set_named_property(env, exports, "read", readFunc);
+    napi_value writeFunc;
+    napi_create_function(env,
+                      NULL,
+                      NAPI_AUTO_LENGTH,
+                      write,
+                      NULL,
+                      &writeFunc);
+    napi_set_named_property(env, exports, "write", writeFunc);
+    return exports;
 }
 
 NAPI_MODULE(NODE_GYP_MODULE_NAME, Init)
