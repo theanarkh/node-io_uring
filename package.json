@@ -1,6 +1,6 @@
 {
   "name": "nodejs_io_uring",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "",
   "main": "FileReader.js",
   "scripts": {
@@ -14,7 +14,7 @@
   "keywords": [
     "io_uring"
   ],
-  "files": ["liburing.h","liburing/barrier.h", "liburing/compat.h", "liburing/io_uring.h","README.md","io_uring.cc", "FileReader.js", "binding.gyp", "test.js", "liburing.a", "1.txt"],
+  "files": ["FileWriter", "test", "liburing.h","liburing/barrier.h", "liburing/compat.h", "liburing/io_uring.h","README.md","io_uring.cc", "FileReader.js", "binding.gyp", "test.js", "liburing.a", "1.txt"],
   "author": "gc",
   "license": "ISC",
   "gypfile": true
