@@ -13,13 +13,12 @@
 // 管理一个文件读取请求的结构体
 struct request {
     int fd;
-    // 回调
     napi_env env;
+    // 回调
     napi_ref func;
     // 字节大小
     int count;
     int offset;
-    int buf_size;
     int nvecs;
     // 数据
     struct iovec iovecs[];     
@@ -67,9 +66,7 @@ void io_uring_done(uv_poll_t* handle, int status, int events) {
         napi_get_null(req->env, &argv[0]);
         napi_create_int32(req->env, req->count, &argv[1]);
         napi_value callback;
-        
         napi_get_reference_value(req->env, req->func, &callback);
-        
         napi_status ret = napi_call_function(req->env, global, callback, 2, argv, nullptr);
         napi_delete_reference(req->env, req->func);
         if (ret != napi_ok) {
@@ -83,7 +80,7 @@ void io_uring_done(uv_poll_t* handle, int status, int events) {
 }
 
 // 向内核提交一个请求
-int submit_request(int op, struct request* req, struct io_uring *ring) {
+void submit_request(int op, struct request* req, struct io_uring *ring) {
     // 获取一个io_uring的请求结构体
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
     // 填充请求
@@ -109,13 +106,9 @@ int submit_request(int op, struct request* req, struct io_uring *ring) {
         uv_poll_start(&io_uring_data->poll_handle, UV_READABLE, io_uring_done);
     // 提交请求给内核
     io_uring_submit(ring);
-
-    return 0;
 }
 
-
-
-static napi_value read(napi_env env, napi_callback_info info) {
+void read_write_wapper(int op, napi_env env, napi_callback_info info) {
     size_t argc = 4;
     napi_value args[4];
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
@@ -145,43 +138,15 @@ static napi_value read(napi_env env, napi_callback_info info) {
     req->iovecs[0].iov_len = bufferLength;
     // 记录内存地址
     req->iovecs[0].iov_base = bufferData;
-
-    submit_request(IORING_OP_READV, req, &io_uring_data->ring);              
+    submit_request(op, req, &io_uring_data->ring);  
     return nullptr;
+}
+static napi_value read(napi_env env, napi_callback_info info) {
+    return read_write_wrapper(IORING_OP_READV, env, info);     
 }
 
 static napi_value write(napi_env env, napi_callback_info info) {
-    size_t argc = 4;
-    napi_value args[4];
-    napi_get_cb_info(env, info, &argc, args, NULL, NULL);
-    int32_t fd;
-    napi_get_value_int32(env, args[0], &fd);
-    char *bufferData;
-    size_t bufferLength;
-    napi_get_buffer_info(env,
-                        args[1],
-                        (void**)(&bufferData),
-                        &bufferLength);
-    int32_t offset;
-    napi_get_value_int32(env, args[3], &offset);
-  
-    uv_loop_t* loop;
-    napi_get_uv_event_loop(env, &loop);
-    struct io_uring_info *io_uring_data = (io_uring_info *)loop->data;
-    // 申请内存
-    struct request *req = (struct request *)malloc(sizeof(*req) + (sizeof(struct iovec) * 1));
-    req->fd = fd;
-    req->offset = offset;
-    // 保存回调
-    napi_create_reference(env, args[2], 1, &req->func);
-    req->env = env;
-    req->nvecs = 1;
-    // 记录buffer大小
-    req->iovecs[0].iov_len = bufferLength;
-    // 记录内存地址
-    req->iovecs[0].iov_base = bufferData;
-    submit_request(IORING_OP_WRITEV, req, &io_uring_data->ring);              
-    return nullptr;
+    return read_write_wrapper(IORING_OP_WRITEV, env, info);         
 }
 
 napi_value Init(napi_env env, napi_value exports) {
