@@ -1,4 +1,4 @@
-const { FileWriter } = require('./FileWriter');
+const { FileWriter } = require('../FileWriter');
 const fs = require('fs');
 const fd = fs.openSync('./1.txt', 'w');
 const fileWrite = new FileWriter({fd});

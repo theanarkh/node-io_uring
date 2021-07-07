@@ -108,7 +108,7 @@ void submit_request(int op, struct request* req, struct io_uring *ring) {
     io_uring_submit(ring);
 }
 
-void read_write_wapper(int op, napi_env env, napi_callback_info info) {
+void read_write_wrapper(int op, napi_env env, napi_callback_info info) {
     size_t argc = 4;
     napi_value args[4];
     napi_get_cb_info(env, info, &argc, args, NULL, NULL);
@@ -139,14 +139,15 @@ void read_write_wapper(int op, napi_env env, napi_callback_info info) {
     // 记录内存地址
     req->iovecs[0].iov_base = bufferData;
     submit_request(op, req, &io_uring_data->ring);  
-    return nullptr;
 }
 static napi_value read(napi_env env, napi_callback_info info) {
-    return read_write_wrapper(IORING_OP_READV, env, info);     
+    read_write_wrapper(IORING_OP_READV, env, info);     
+    return nullptr;
 }
 
 static napi_value write(napi_env env, napi_callback_info info) {
-    return read_write_wrapper(IORING_OP_WRITEV, env, info);         
+    read_write_wrapper(IORING_OP_WRITEV, env, info);         
+    return nullptr;
 }
 
 napi_value Init(napi_env env, napi_value exports) {
